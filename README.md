@@ -16,23 +16,25 @@ Target architecture: Control Tower landing zone with Reifnir-Root reduced to bil
 | Workloads OU | Reifnir-Prod | Production workloads; no delegated admin |
 | Workloads OU | Reifnir-Dev | Dev/staging workloads; no delegated admin |
 
+# Reifnir organization
+
 ```mermaid
 flowchart TD
-    Root["Reifnir-Root<br/><small>billing, Control Tower only</small>"]
+    Root["Reifnir-Root<br/>billing, Control Tower only"]
 
     subgraph SecOU["Security OU (foundational)"]
-        Audit["Reifnir-Audit<br/><small>GuardDuty, Security Hub, Access Analyzer</small>"]
-        LogArchive["Reifnir-Log-Archive<br/><small>immutable log storage</small>"]
+        Audit["Reifnir-Audit<br/>GuardDuty, Security Hub, Access Analyzer"]
+        LogArchive["Reifnir-Log-Archive<br/>immutable log storage"]
     end
 
     subgraph GovOU["Governance OU"]
-        Governance["Reifnir-Governance<br/><small>org delegated admin: custom SCPs and RCPs</small>"]
+        Governance["Reifnir-Governance<br/>org delegated admin: custom SCPs and RCPs"]
     end
 
     subgraph InfraOU["Infrastructure OU"]
-        Aggregator["Reifnir-Aggregator<br/><small>Config aggregator, IPAM, Identity Center</small>"]
-        Vending["Reifnir-Vending<br/><small>Account Factory via shared Service Catalog</small>"]
-        Delivery["Reifnir-Delivery<br/><small>Terraform state, SCM-as-code, OIDC pipeline roles</small>"]
+        Aggregator["Reifnir-Aggregator<br/>Config aggregator, IPAM, Identity Center"]
+        Vending["Reifnir-Vending<br/>Account Factory via shared Service Catalog"]
+        Delivery["Reifnir-Delivery<br/>Terraform state, SCM-as-code, OIDC pipeline roles"]
     end
 
     subgraph WorkOU["Workloads OU"]
