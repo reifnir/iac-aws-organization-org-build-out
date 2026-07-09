@@ -16,6 +16,8 @@ Target architecture: Control Tower landing zone with Reifnir-Root reduced to bil
 | Workloads OU | Reifnir-Prod | Production workloads; no delegated admin |
 | Workloads OU | Reifnir-Dev | Dev/staging workloads; no delegated admin |
 
+![image of organization](./images/reifnir-org-1.0.png)
+
 Notes:
 
 - The Security OU is Control Tower's foundational OU. It holds only the two shared accounts — Account Factory cannot provision into it, which is why Governance gets its own OU.
