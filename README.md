@@ -16,7 +16,49 @@ Target architecture: Control Tower landing zone with Reifnir-Root reduced to bil
 | Workloads OU | Reifnir-Prod | Production workloads; no delegated admin |
 | Workloads OU | Reifnir-Dev | Dev/staging workloads; no delegated admin |
 
-![image of organization](./images/reifnir-org-1.0.png)
+```mermaid
+flowchart TD
+    Root["Reifnir-Root<br/><small>billing, Control Tower only</small>"]
+
+    subgraph SecOU["Security OU (foundational)"]
+        Audit["Reifnir-Audit<br/><small>GuardDuty, Security Hub, Access Analyzer</small>"]
+        LogArchive["Reifnir-Log-Archive<br/><small>immutable log storage</small>"]
+    end
+
+    subgraph GovOU["Governance OU"]
+        Governance["Reifnir-Governance<br/><small>org delegated admin: custom SCPs and RCPs</small>"]
+    end
+
+    subgraph InfraOU["Infrastructure OU"]
+        Aggregator["Reifnir-Aggregator<br/><small>Config aggregator, IPAM, Identity Center</small>"]
+        Vending["Reifnir-Vending<br/><small>Account Factory via shared Service Catalog</small>"]
+        Delivery["Reifnir-Delivery<br/><small>Terraform state, SCM-as-code, OIDC pipeline roles</small>"]
+    end
+
+    subgraph WorkOU["Workloads OU"]
+        Prod["Reifnir-Prod"]
+        Dev["Reifnir-Dev"]
+    end
+
+    Root --> SecOU
+    Root --> GovOU
+    Root --> InfraOU
+    Root --> WorkOU
+
+    classDef mgmt fill:#D85A30,stroke:#993C1D,color:#ffffff
+    classDef detective fill:#1D9E75,stroke:#0F6E56,color:#ffffff
+    classDef policy fill:#7F77DD,stroke:#534AB7,color:#ffffff
+    classDef infra fill:#D4537E,stroke:#993556,color:#ffffff
+    classDef workload fill:#888780,stroke:#5F5E5A,color:#ffffff
+
+    class Root mgmt
+    class Audit,LogArchive detective
+    class Governance policy
+    class Aggregator,Vending,Delivery infra
+    class Prod,Dev workload
+```
+
+Legend: orange = management · green = detective security · purple = preventive policy · pink = shared infrastructure · gray = workloads
 
 Notes:
 
