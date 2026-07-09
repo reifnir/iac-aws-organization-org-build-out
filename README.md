@@ -1,93 +1,104 @@
-# Aws Organization Build Out
+# Reifnir AWS Organization Build-Out Plan
 
+Target architecture: Control Tower landing zone with Reifnir-Root reduced to billing and Control Tower operations only. Every operational power delegated to exactly one member account, with no member account holding two powers that combine into org-admin capability.
 
+## Account and OU layout
 
-## Getting started
+| OU | Account | Role / delegated administration |
+|---|---|---|
+| — (management) | Reifnir-Root | Billing, Control Tower landing zone operations only |
+| Security OU (foundational) | Reifnir-Audit | Delegated admin: GuardDuty, Security Hub, IAM Access Analyzer (detective only) |
+| Security OU (foundational) | Reifnir-Log-Archive | Immutable log storage; no delegated admin |
+| Governance OU | Reifnir-Governance | Organizations delegated admin: custom SCPs and RCPs only |
+| Infrastructure OU | Reifnir-Aggregator | Delegated admin: AWS Config aggregator, IPAM, IAM Identity Center |
+| Infrastructure OU | Reifnir-Vending | Account Factory provisioning via shared Service Catalog portfolio |
+| Workloads OU | Reifnir-Prod | Production workloads; no delegated admin |
+| Workloads OU | Reifnir-Dev | Dev/staging workloads; no delegated admin |
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Notes:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- The Security OU is Control Tower's foundational OU. It holds only the two shared accounts — Account Factory cannot provision into it, which is why Governance gets its own OU.
+- Separation of powers: detection (Audit) cannot alter policy; policy (Governance) cannot grant identity; identity (Aggregator) cannot loosen guardrails; vending (Vending) can only create enrolled, governed accounts.
+- SCPs/RCPs never bind the management account. Root is protected only by root-user lockdown and near-zero use.
 
-## Add your files
+## Tasks
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### 1. Harden the root users
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/reifnir-public-projects/iac/aws-organization-build-out.git
-git branch -M main
-git push -uf origin main
-```
+- [ ] Add a hardware MFA key to Reifnir-Root's root user; stop using it afterward.
+- [ ] Enable centralized root access in IAM (from the management account) so member-account root credentials are removed entirely.
 
-## Integrate with your tools
+### 2. Create and register the OUs
 
-* [Set up project integrations](https://gitlab.com/reifnir-public-projects/iac/aws-organization-build-out/-/settings/integrations)
+- [ ] In Control Tower from Root, create: Governance OU, Infrastructure OU (if not already present), Workloads OU.
+- [ ] Register each OU so the Control Tower baseline applies.
 
-## Collaborate with your team
+### 3. Enable controls per OU
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+- [ ] Apply the strongly-recommended control set to Governance, Infrastructure, and Workloads OUs.
+- [ ] Apply the tightest posture to the Governance OU (most dangerous account).
+- [ ] Review the Security OU deliberately — it carries mandatory controls by default; decide whether to add electives.
 
-## Test and Deploy
+### 4. Provision remaining accounts (last Account Factory run from Root)
 
-Use the built-in continuous integration in GitLab.
+- [ ] Reifnir-Governance → Governance OU
+- [ ] Reifnir-Vending → Infrastructure OU
+- [ ] Reifnir-Prod → Workloads OU (if not yet created)
+- [ ] Reifnir-Dev → Workloads OU (if not yet created)
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+### 5. Set up the Account Factory portfolio share
 
-***
+- [ ] In Root: create a Service Catalog portfolio containing the Account Factory product.
+- [ ] Attach a tightly scoped launch constraint role.
+- [ ] Share the portfolio to Reifnir-Vending.
+- [ ] In Vending: import the share and grant the Identity Center principal access.
+- [ ] Scope Vending's permission set to Service Catalog actions only.
+- [ ] Note: provisioning must run in the Control Tower home region; re-check the shared product version after every landing zone update.
 
-# Editing this README
+### 6. Delegate Identity Center to Reifnir-Aggregator
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+- [ ] Register Aggregator as the IAM Identity Center delegated administrator.
+- [ ] Limitation to remember: permission sets provisioned into Root itself must still be managed from Root.
 
-## Suggestions for a good README
+### 7. Confirm Config delegation to Aggregator
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+- [ ] Verify the delegated admin registration for AWS Config.
+- [ ] Confirm the org-wide aggregator is collecting from all accounts (Control Tower may have wired part of this at setup).
 
-## Name
-Choose a self-explaining name for your project.
+### 8. Enable IPAM with Aggregator as delegated admin
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+- [ ] Check whether the Free tier suffices before enabling Advanced (Advanced bills per active IP per hour).
+- [ ] Register Aggregator as IPAM delegated administrator.
+- [ ] Create the top-level pool and regional pools.
+- [ ] RAM-share the pools to Prod and Dev.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### 9. Delegate the detective suite to Reifnir-Audit
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- [ ] GuardDuty — delegated admin with auto-enable on.
+- [ ] Security Hub — delegated admin with auto-enable on.
+- [ ] IAM Access Analyzer — delegated admin.
+- [ ] Optional, later: Inspector, Detective, Macie.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 10. Delegate policy management to Reifnir-Governance
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+- [ ] Write the Organizations delegation resource policy: allow policy create/update/delete/attach/detach conditioned on policy types `SERVICE_CONTROL_POLICY` and `RESOURCE_CONTROL_POLICY`.
+- [ ] Explicitly exclude Control Tower's `aws-guardrails-*` managed policies and `FullAWSAccess` / `RCPFullAWSAccess`.
+- [ ] Move all custom SCP/RCP authoring to Governance.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### 11. Shrink Root's remaining surface
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+- [ ] Create a billing-only Identity Center permission set for invoice/payment tasks.
+- [ ] Enable PDF invoice delivery by email.
+- [ ] Set AWS Budgets alerts.
+- [ ] Optional: register a Cost Optimization Hub delegated admin for cost visibility outside Root.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### 12. Verify end-to-end
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+- [ ] Provision a throwaway account from Reifnir-Vending.
+- [ ] Confirm it lands enrolled: CloudTrail, Config, guardrails, GuardDuty membership all active.
+- [ ] Confirm Governance can edit a custom SCP and **cannot** touch a Control Tower guardrail.
+- [ ] Close the test account.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Steady state
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Root should only see logins for billing checks and Control Tower landing zone updates, a few times per year, via scoped Identity Center permission sets — never the root user.
