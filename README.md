@@ -74,15 +74,16 @@ Notes:
 
 ### 1. Stand up the SCM management project (repos as code) — start now
 
-- [ ] Create the Terraform project that declaratively manages GitLab/GitHub: project/repo configuration, mirroring, and branch protection.
-- [ ] Use an interim state backend for now (GitLab-managed Terraform state, or a temporary bucket) — flag it for migration to Delivery in step 12.
-- [ ] Authenticate the SCM provider with a GitHub App or short-lived token — no long-lived PAT in provider config. Treat state as secret-grade regardless of backend.
-- [ ] Import the existing repos into state rather than recreating them; converge their config declaratively.
-- [ ] Have this project manage its own repo's configuration too — including the branch protection on `main` that the future write-role trust policies will depend on.
-- [ ] Leave the repo→role access mappings as a stubbed module for now; it activates in step 13 once OIDC providers and roles exist.
+- [x] Create the Terraform project that declaratively manages GitLab/GitHub: project/repo configuration, mirroring, and branch protection.
+- [x] Use an interim state backend for now (GitLab-managed Terraform state, or a temporary bucket) — flag it for migration to Delivery in step 12.
+- [x] Authenticate the SCM provider with a GitHub App or short-lived token — no long-lived PAT in provider config. Treat state as secret-grade regardless of backend.
+- [x] Import the existing repos into state rather than recreating them; converge their config declaratively.
+- [x] Have this project manage its own repo's configuration too — including the branch protection on `main` that the future write-role trust policies will depend on.
+- [x] Leave the repo→role access mappings as a stubbed module for now; it activates in step 13 once OIDC providers and roles exist.
 
 ### 2. Harden the root users
 
+- [x] Add a software MFA key to Reifnir-Root's root user and order a hardware MFA device.
 - [ ] Add a hardware MFA key to Reifnir-Root's root user; stop using it afterward.
 - [ ] Enable centralized root access in IAM (from the management account) so member-account root credentials are removed entirely.
 
