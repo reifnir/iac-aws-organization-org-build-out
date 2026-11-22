@@ -89,8 +89,8 @@ Notes:
 ### 2. Harden the root users
 
 - [x] Add a software MFA key to Reifnir-Root's root user and order a hardware MFA device.
-- [ ] Add a hardware MFA key to Reifnir-Root's root user; stop using it afterward.
-- [ ] Before step 3, confirm the root user sign-in and MFA work. It is the break-glass path if Identity Center access breaks during the rebuild.
+- [x] Add a hardware MFA key to Reifnir-Root's root user; stop using it afterward.
+- [x] Before step 3, confirm the root user sign-in and MFA work. It is the break-glass path if Identity Center access breaks during the rebuild.
 - [x] Enable centralized root access in IAM (from the management account) so member-account root credentials are removed entirely. Root credentials management and root sessions are both on, so new accounts are created without root credentials.
 
 ### 3. Rebuild the landing zone
