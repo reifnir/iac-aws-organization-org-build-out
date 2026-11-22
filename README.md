@@ -97,13 +97,12 @@ Notes:
 
 The first landing zone put Security Roles and Config in Reifnir-Aggregator and centralized logging in Reifnir-Audit. Control Tower treats integration accounts as a one-time selection at setup, and both accounts are nearly empty, so decommission and start fresh.
 
-- [ ] Create a Suspended OU. Don't register it with Control Tower.
-- [ ] Optional: copy anything worth keeping out of the old accounts first (CloudTrail logs in Reifnir-Audit, Config history in Reifnir-Aggregator). Closed accounts can't be accessed.
-- [ ] Decommission the landing zone from Root (console or `DeleteLandingZone`). It removes Control Tower's SCPs, controls, StackSets and records, and leaves accounts, OUs and data in place. Don't hand-delete Control Tower resources instead; AWS warns that this can block a new landing zone.
-- [ ] Get into the old accounts through `OrganizationAccountAccessRole` (decommission recreates it) or the existing `AWSAdministratorAccess` group assignment. Keep the Control Tower-created groups until the old accounts are closed (step 8 deletes them).
-- [ ] Delete the leftover `aws-controltower-*` S3 buckets and CloudWatch log groups in Root, Reifnir-Audit and Reifnir-Aggregator. Control Tower requires this before a new landing zone can be set up.
-- [ ] Confirm the organization trail `aws-controltower-BaselineCloudTrail` is gone from Root (us-east-1), and delete it if not. It lives in Root but writes to a bucket in the old Reifnir-Audit, so closing that account won't remove it.
-- [ ] Deregister Reifnir-Aggregator as the AWS Config delegated administrator, then disable AWS Config trusted access for the organization (`config.amazonaws.com`, currently enabled). Control Tower's prerequisites say the organization can't have it enabled at setup.
+- [x] Create a Suspended OU. Don't register it with Control Tower.
+- [x] Decommission the landing zone from Root (console or `DeleteLandingZone`). It removes Control Tower's SCPs, controls, StackSets and records, and leaves accounts, OUs and data in place. Don't hand-delete Control Tower resources instead; AWS warns that this can block a new landing zone.
+- [x] Get into the old accounts through `OrganizationAccountAccessRole` (decommission recreates it) or the existing `AWSAdministratorAccess` group assignment. Keep the Control Tower-created groups until the old accounts are closed (step 8 deletes them).
+- [x] Delete the leftover `aws-controltower-*` S3 buckets and CloudWatch log groups in Root, Reifnir-Audit and Reifnir-Aggregator. Control Tower requires this before a new landing zone can be set up.
+- [x] Confirm the organization trail `aws-controltower-BaselineCloudTrail` is gone from Root (us-east-1), and delete it if not. It lives in Root but writes to a bucket in the old Reifnir-Audit, so closing that account won't remove it.
+- [x] Deregister Reifnir-Aggregator as the AWS Config delegated administrator, then disable AWS Config trusted access for the organization (`config.amazonaws.com`, currently enabled). Control Tower's prerequisites say the organization can't have it enabled at setup.
 - [ ] If you want the old root emails back, move them with `aws account start-primary-email-update` from Root while the accounts are still active. Member root users have no credentials, so that's the only way, and a closed account's email can never be reused for Account Factory.
 - [ ] Move the old Reifnir-Audit and Reifnir-Aggregator into the Suspended OU and close them. Closed accounts stay listed as CLOSED for up to 90 days.
 - [ ] From Root, create the new Reifnir-Log-Archive and Reifnir-Audit accounts in the Security OU (`aws organizations create-account`, then move them). Organizations doesn't document whether account names must be unique; if `Reifnir-Audit` is rejected while the old account is still listed, wait for it to drop off.
