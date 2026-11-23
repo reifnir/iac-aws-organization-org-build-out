@@ -97,62 +97,26 @@ How we'd do it with several administrators:
    - denies outright the actions that reset credentials, remove MFA devices or change instance settings (identity source, MFA policy, attributes for access control, trusted token issuers), since they can't be scoped per user. Root handles those.
 5. Require a second person's approval on the Identity repo's `main`, so no single administrator can change access alone.
 
-## Milestone 1: critical path
+## Critical path: landing zone to SCM-driven Dev and Prod
 
-Goal: the landing zone is up, Reifnir-Dev and Reifnir-Prod are vended and enrolled, each has its own Terraform state bucket, and GitLab projects deploy to them through the SCM project's access mappings. Everything in [Tasks](#tasks) that isn't listed here comes after this milestone.
+The existing tasks in [Tasks](#tasks) that reach this milestone, in the order to do them: landing zone up, Reifnir-Dev and Reifnir-Prod vended, each with its own state bucket, and GitLab projects deploying to them through the SCM project's access mappings. Every other task comes after.
 
-Shortcuts this milestone takes on purpose. Each one is undone later:
+1. **Step 3:** create Reifnir-Log-Archive and Reifnir-Audit in the Security OU.
+2. **Step 3:** set up the 4.0 landing zone.
+3. **Step 3:** confirm Reifnir-Audit is the Config delegated admin, and that the Security Roles StackSets have no instances.
+4. **Step 4:** create the Workloads, Prod and NonProd OUs. Register Infrastructure, Workloads, Prod and NonProd (Workloads before its children). Policy Staging and the Governance registration can wait.
+5. **Step 6:** provision Reifnir-Delivery, Reifnir-Prod and Reifnir-Dev. The other accounts can wait.
+6. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
+7. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
+8. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
+9. **Step 11:** create the bootstrap execution role in Prod and Dev, trusting Delivery.
+10. **Step 11:** from Delivery, create the GitLab OIDC provider and the state bucket in Prod and Dev.
+11. **Step 12:** un-stub the repo→role access mappings, with `sub` and `aud` pinned, and verify branch protection on `main`.
+12. **Step 15:** from that list, confirm that a `main` pipeline's write role works and reaches only its own account, that a non-main pipeline is denied it, and that an unmapped repo gets no role.
 
-- Human access to Dev and Prod is assigned by hand from Root. The Identity Center automation (step 11) adopts it later.
-- The SCM project's state stays in `reifnir-root-terraform-state-primary` in Root, and its pipelines keep using `ReifnirAutomationReadOnly`/`ReifnirAutomationDeploy` in Root, until Delivery exists (step 11).
-- Each Workloads account gets an SCM bootstrap role that trusts the SCM project's `main` pipelines directly. Step 11 later re-points that trust to Delivery.
+Do these first after the milestone: the Delivery SCP (step 11), the role-assumption alerts (step 12) and backups (step 13), before Prod holds anything you can't recreate.
 
-### A. Landing zone
-
-- [ ] M1. From Root, create the new Reifnir-Log-Archive and Reifnir-Audit accounts in the Security OU (`aws organizations create-account`, then move them). Organizations doesn't document whether account names must be unique; if `Reifnir-Audit` is rejected while the old account is still listed, wait for it to drop off.
-- [ ] M2. Set up a new 4.0 landing zone with this manifest: `governedRegions` us-east-1 and us-west-2; `centralizedLogging` → Reifnir-Log-Archive; `config` → Reifnir-Audit; `securityRoles`, `accessManagement` and `backup` disabled. Every `enabled` flag must be stated explicitly.
-- [ ] M3. Confirm Control Tower registered Reifnir-Audit as the AWS Config delegated admin with the service-linked aggregator.
-- [ ] M4. Confirm the `AWSControlTowerSecurityResources` and `AWSControlTowerBP-BASELINE-ROLES` StackSets are absent or have no instances, so no `aws-controltower-AdministratorExecutionRole` exists anywhere.
-
-### B. Workloads OUs and accounts
-
-- [ ] M5. From Root, create the Workloads OU with Prod and NonProd child OUs. Register Workloads first, then Prod and NonProd (a nested OU's parent must be registered before it).
-- [ ] M6. From Root, provision with Account Factory: Reifnir-Prod → Workloads › Prod OU, Reifnir-Dev → Workloads › NonProd OU.
-- [ ] M7. From Root, assign your daily Identity Center user an admin permission set in Dev and Prod (user assignment, not group). This is for bootstrapping; step 11's automation takes Workloads assignments over later.
-
-### C. Bootstrap Dev and Prod
-
-- [ ] M8. Create each account's state bucket with the `terraform-state` project, run from your workstation with an Identity Center session in that account. Its naming gives `reifnir-dev-terraform-state-{primary,secondary}` and `reifnir-prod-terraform-state-{primary,secondary}`. First change the project so that:
-  - each account has its own GitLab HTTP state name (today it's fixed to `terraform-state`), so the runs don't share or overwrite state;
-  - it stops writing the group-wide `TERRAFORM_STATE_BUCKET_*` and `TERRAFORM_REGION_CURRENT` variables, or the Dev run would overwrite Root's values (per-project variables come from M11);
-  - its pipeline no longer uses `AWS_ACCESS_KEY_ID_TEMP_ADMIN`/`AWS_SECRET_ACCESS_KEY_TEMP_ADMIN`. Switch it to OIDC or run it only by hand, then delete those access keys and the IAM user behind them. Its `include:` also still points at the old `reifnir-public-projects/job-templates` path.
-- [ ] M9. In each account, from your workstation, with state under `bootstrap/` in that account's new bucket (reuse `aws-automation-identity` if it already does this for Root):
-  - the GitLab OIDC provider (`https://gitlab.com`, audience `https://gitlab.com`);
-  - `reifnir-scm-bootstrap`: trusted only by `project_path:reifnir-public-projects/iac/source-control-management:ref_type:branch:ref:main` (`StringEquals`, `aud` pinned). It may create, update and delete IAM roles and policies under the path `/gitlab/` and read the OIDC provider, nothing else. It can't modify itself or the provider;
-  - `reifnir-scm-bootstrap-plan`: the read-only twin, trusted by the SCM project's other branches, so the SCM project's merge-request plans work.
-
-### D. Wire up SCM
-
-- [ ] M10. In `repos.yaml`, point `automation-access` at the new account names. `dns` still maps to Reifnir-Aggregator, which is closed.
-- [ ] M11. Un-stub the access mappings (step 12) for Dev and Prod. Use one aliased AWS provider per account, each using `assume_role_with_web_identity` with the job's GitLab token, and gate the modules on `automation-access`. For each project, and each account in its `automation-access`:
-  - `/gitlab/<project>-apply`, trusted only by that project's `main` (`StringEquals` on `sub`, `aud` pinned);
-  - `/gitlab/<project>-plan`, read-only, trusted by that project's other branches, matching the shared template's merge-request plans;
-  - both roles get read/write on that project's state keys in the account's bucket, and nothing else in it;
-  - the project's CI variables: account ID, plan and apply role ARNs, state bucket and region, per target account.
-- [ ] M12. Change `job-templates` so the role ARNs, account and state bucket come from those per-project variables instead of `AWS_ACCOUNT_ID_ROOT` and `TERRAFORM_STATE_BUCKET_CURRENT`. A project with more than one target account needs one plan/apply pair per account.
-- [ ] M13. Verify with a throwaway project mapped to Reifnir-Dev:
-  - its merge-request pipeline plans, but can't assume the apply role;
-  - `main` applies;
-  - a project that isn't mapped to Dev can't assume any role there.
-
-### Deferred until after milestone 1
-
-Steps 5 and 7, the rest of steps 6 and 8–14, and step 15. Until those are done:
-
-- Detection is only Control Tower's organization trail and Config; GuardDuty and Security Hub arrive in step 9.
-- There are no alerts (steps 8 and 12) and no backups (step 13), so keep anything in Prod reproducible until step 13 is done.
-- Root still hosts the SCM state and the `ReifnirAutomation*` roles until step 11.
-
+## Tasks
 ## Tasks
 
 ### 1. Stand up the SCM management project (repos as code) — start now
@@ -182,13 +146,16 @@ The first landing zone put Security Roles and Config in Reifnir-Aggregator and c
 - [x] Confirm the organization trail `aws-controltower-BaselineCloudTrail` is gone from Root (us-east-1), and delete it if not. It lives in Root but writes to a bucket in the old Reifnir-Audit, so closing that account won't remove it.
 - [x] Deregister Reifnir-Aggregator as the AWS Config delegated administrator, then disable AWS Config trusted access for the organization (`config.amazonaws.com`, currently enabled). Control Tower's prerequisites say the organization can't have it enabled at setup.
 - [x] Move the old Reifnir-Audit and Reifnir-Aggregator into the Suspended OU and close them. Closed accounts stay listed as CLOSED for up to 90 days.
+- [ ] From Root, create the new Reifnir-Log-Archive and Reifnir-Audit accounts in the Security OU (`aws organizations create-account`, then move them). Organizations doesn't document whether account names must be unique; if `Reifnir-Audit` is rejected while the old account is still listed, wait for it to drop off.
 - [x] Confirm the management-account roles the API setup uses still exist: `AWSControlTowerAdmin`, `AWSControlTowerCloudTrailRole`, `AWSControlTowerStackSetRole` and `AWSControlTowerConfigAggregatorRoleForOrganizations` (present today; recreate them if decommission removed them).
-- The remaining landing zone tasks are in milestone 1 (M1–M4).
+- [ ] Set up a new 4.0 landing zone with this manifest: `governedRegions` us-east-1 and us-west-2; `centralizedLogging` → Reifnir-Log-Archive; `config` → Reifnir-Audit; `securityRoles`, `accessManagement` and `backup` disabled. Every `enabled` flag must be stated explicitly.
+- [ ] Confirm Control Tower registered Reifnir-Audit as the AWS Config delegated admin with the service-linked aggregator.
+- [ ] Confirm the `AWSControlTowerSecurityResources` and `AWSControlTowerBP-BASELINE-ROLES` StackSets are absent or have no instances, so no `aws-controltower-AdministratorExecutionRole` exists anywhere.
 
 ### 4. Create and register the OUs
 
-- [ ] From Root, create the Policy Staging OU. The Workloads, Prod and NonProd OUs are created in milestone 1 (M5); Governance and Infrastructure OUs already exist.
-- [ ] Register the Governance, Infrastructure and Policy Staging OUs so the Control Tower baseline applies. Suspended stays unregistered.
+- [ ] From Root, create the Workloads OU with Prod and NonProd child OUs, and the Policy Staging OU. Governance and Infrastructure OUs already exist.
+- [ ] Register the Governance, Infrastructure, Workloads, Prod, NonProd and Policy Staging OUs so the Control Tower baseline applies. Suspended stays unregistered.
 
 ### 5. Enable controls per OU
 
@@ -204,7 +171,8 @@ With Identity Center self-managed, Account Factory no longer creates Identity Ce
 - [ ] Reifnir-Vending → Infrastructure OU
 - [ ] Reifnir-Delivery → Infrastructure OU
 - [ ] Reifnir-Backup → Infrastructure OU
-- Reifnir-Prod and Reifnir-Dev are provisioned in milestone 1 (M6).
+- [ ] Reifnir-Prod → Workloads › Prod OU
+- [ ] Reifnir-Dev → Workloads › NonProd OU
 - [ ] From Root, create the elevated Identity Center user: a separate username, password and hardware MFA key from the daily user, used only for non-Workloads accounts.
 - [ ] From Root, assign the elevated user an admin permission set (user assignment, not group) in Reifnir-Log-Archive, Reifnir-Audit, Reifnir-Governance, Reifnir-Vending, Reifnir-Delivery and Reifnir-Backup. Account Factory doesn't do this any more, and steps 8–13 need it to bootstrap those accounts. Pare it back once each account's pipeline exists.
 
@@ -269,10 +237,10 @@ Break-glass is still needed with Identity Center in Root. Once no permission set
 
 ### 11. Bootstrap Reifnir-Delivery (Terraform control plane)
 
-- [ ] Manually create the management state bucket in Delivery for the non-workload stacks (`scm/`, `identity-center/`): versioned, SSE-KMS with its own key held in Delivery, public access blocked, and a bucket policy that admits only those stacks' pipeline roles. Use native S3 state locking (Terraform >= 1.10) — no DynamoDB table needed. Prod and Dev keep their own state buckets in their own accounts (milestone 1, M8). Governance and Audit state lives in those accounts, not here.
-- [ ] Migrate the SCM project's state from the interim backend (`reifnir-root-terraform-state-primary` in Root) into the management bucket's `scm/` prefix, and move its pipelines off `ReifnirAutomationReadOnly`/`ReifnirAutomationDeploy` in Root. Then delete those roles.
-- [ ] Re-point the trust of `reifnir-scm-bootstrap` and `reifnir-scm-bootstrap-plan` in each Workloads account (milestone 1, M9) from the SCM project's GitLab tokens to Delivery's SCM pipeline roles. They become Delivery's bootstrap execution roles. Delivery's bootstrap roles stay out of every non-Workloads account.
-- [ ] Restrict each Workloads state bucket's policy to that account's `/gitlab/` pipeline roles and its bootstrap stack.
+- [ ] Manually create the management state bucket in Delivery for the non-workload stacks (`scm/`, `identity-center/`): versioned, SSE-KMS with its own key held in Delivery, public access blocked, and a bucket policy that admits only those stacks' pipeline roles. Use native S3 state locking (Terraform >= 1.10) — no DynamoDB table needed. Prod and Dev keep their own state buckets in their own accounts (created below). Governance and Audit state lives in those accounts, not here.
+- [ ] Migrate the SCM project's state from the interim backend (step 1) into the management bucket's `scm/` prefix.
+- [ ] Create a bootstrap execution role in each Workloads account only, trusting Reifnir-Delivery and scoped to IAM/OIDC management and that account's state bucket, rather than AdministratorAccess.
+- [ ] From Delivery, create in each Workloads account via Terraform: the GitLab OIDC identity provider, and the account's own state bucket (the `terraform-state` project's replicated-bucket module), with a bucket policy restricted to that account's pipeline roles.
 - [ ] Delivery's human access is the elevated user only, assigned by the root user. The daily user gets no assignment in Delivery.
 - [ ] From Root, attach an SCP directly to the Reifnir-Delivery account. It is untagged, so Governance can't touch it. It confines Delivery's role assumption to the Workloads OU, Delivery itself, and the Identity Center automation role in Root:
 
@@ -304,9 +272,9 @@ Break-glass is still needed with Identity Center in Root. Once no permission set
 
 ### 12. Activate declarative pipeline access (SCM project, phase 2)
 
-- [ ] Un-stub the repo→role access mappings module from step 1 (done for Dev and Prod in milestone 1, M11; extend it to each new Workloads account). It covers Workloads accounts only; pipeline roles in Governance and Audit are managed from inside those accounts, and the Identity Center automation role in Root by the root user.
+- [ ] Un-stub the repo→role access mappings module from step 1. It covers Workloads accounts only; pipeline roles in Governance and Audit are managed from inside those accounts, and the Identity Center automation role in Root by the root user.
 - [ ] Define pipeline role trust policies with OIDC `sub` conditions pinning the exact GitLab project path and ref. GitLab's `sub` has the form `project_path:<group>/<project>:ref_type:branch:ref:<branch>`; write-capable roles require `ref_type:branch:ref:main`.
-- [ ] The read-only plan roles from M11 are enough while I'm the only person who can push. **Before anyone else gets push access to any mapped repo, tighten them to read plus state locking**, so a branch pipeline can't read secrets out of other stacks' state.
+- [ ] Plan-only roles for non-main branches (read plus state locking) are deferred while I'm the only person who can push. **Create them before anyone else gets push access to any mapped repo.**
 - [ ] Use `StringEquals` on `sub` claims wherever possible; if `StringLike` is unavoidable, never wildcard the group/project portion (`project_path:<group>/*` grants every project in the group).
 - [ ] Pin the OIDC `aud` claim in addition to `sub`.
 - [ ] Verify the branch protection on `main` (managed since step 1) is enforced — the `ref` condition is only as strong as it.
