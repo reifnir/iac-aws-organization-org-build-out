@@ -40,8 +40,12 @@ flowchart TD
     end
 
     subgraph WorkOU["Workloads OU"]
-        Prod["Reifnir-Prod"]
-        Dev["Reifnir-Dev"]
+        subgraph ProdOU["Prod OU"]
+            Prod["Reifnir-Prod"]
+        end
+        subgraph NonProdOU["NonProd OU"]
+            Dev["Reifnir-Dev"]
+        end
     end
 
     Root --> SecOU
@@ -101,8 +105,8 @@ How we'd do it with several administrators:
 
 The existing tasks in [Tasks](#tasks) that reach this milestone, in the order to do them: landing zone up, Reifnir-Dev and Reifnir-Prod vended, each with its own state bucket, and GitLab projects deploying to them through the SCM project's access mappings. Every other task comes after.
 
-1. **Step 4:** create the Workloads, Prod and NonProd OUs. Register Infrastructure, Workloads, Prod and NonProd (Workloads before its children). Policy Staging and the Governance registration can wait.
-1. **Step 6:** provision Reifnir-Delivery, Reifnir-Prod and Reifnir-Dev. The other accounts can wait.
+1. **Step 6:** create Reifnir-Delivery, Reifnir-Prod and Reifnir-Dev and move them into their OUs. The other accounts can wait.
+1. **Step 6:** enroll the Infrastructure, Prod and NonProd OUs.
 1. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
 1. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
 1. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
@@ -149,10 +153,12 @@ The first landing zone put Security Roles and Config in Reifnir-Aggregator and c
 - [x] Confirm the service-linked Config aggregator exists in Reifnir-Audit (`describe-configuration-aggregators`, `CreatedBy: controltower.amazonaws.com`). Needs a session in Audit.
 - [x] Confirm the `AWSControlTowerSecurityResources` and `AWSControlTowerBP-BASELINE-ROLES` StackSets are absent or have no instances, so no `aws-controltower-AdministratorExecutionRole` exists anywhere.
 
-### 4. Create and register the OUs
+### 4. Create the OUs
 
-- [ ] From Root, create the Workloads OU with Prod and NonProd child OUs, and the Policy Staging OU. Governance and Infrastructure OUs already exist.
-- [ ] Register the Governance, Infrastructure, Workloads, Prod, NonProd and Policy Staging OUs so the Control Tower baseline applies. Suspended stays unregistered.
+- [x] From Root, create the Workloads OU with Prod and NonProd child OUs. Governance and Infrastructure OUs already exist.
+- [ ] From Root, create the Policy Staging OU.
+
+Enroll the OUs once their accounts exist (step 6).
 
 ### 5. Enable controls per OU
 
@@ -160,9 +166,9 @@ The first landing zone put Security Roles and Config in Reifnir-Aggregator and c
 - [ ] Apply the tightest posture to the Governance OU (most dangerous account): from Root, attach a deny-by-default SCP that allows only Organizations policy actions, read-only IAM/STS, and logging/Config reads. Exempt `AWSControlTowerExecution`. Add the policy-ownership denies from step 10. Attach it after Governance's pipeline role is bootstrapped. Only Root can change it.
 - [ ] Review the Security OU deliberately — it carries mandatory controls by default; decide whether to add electives.
 
-### 6. Provision remaining accounts (last Account Factory run from Root)
+### 6. Create remaining accounts and enroll their OUs
 
-With Identity Center self-managed, Account Factory no longer creates Identity Center users or assignments; access is granted in step 8.
+With Security Roles off, the console can't register an OU or enroll an account (both need the Config and Security Roles integrations). Create each account from Root with `aws organizations create-account`, as in step 3, and move it into its OU. Identity Center access is granted below and in step 8.
 
 - [ ] Reifnir-Governance → Governance OU
 - [ ] Reifnir-Vending → Infrastructure OU
@@ -170,6 +176,7 @@ With Identity Center self-managed, Account Factory no longer creates Identity Ce
 - [ ] Reifnir-Backup → Infrastructure OU
 - [ ] Reifnir-Prod → Workloads › Prod OU
 - [ ] Reifnir-Dev → Workloads › NonProd OU
+- [ ] Enroll the Governance, Infrastructure, Workloads, Prod, NonProd and Policy Staging OUs so the Control Tower baseline applies to the accounts in them (the OU's **Enable AWS Config recording** action). Suspended stays unenrolled.
 - [ ] From Root, create the elevated Identity Center user: a separate username, password and hardware MFA key from the daily user, used only for non-Workloads accounts.
 - [ ] From Root, assign the elevated user an admin permission set (user assignment, not group) in Reifnir-Log-Archive, Reifnir-Audit, Reifnir-Governance, Reifnir-Vending, Reifnir-Delivery and Reifnir-Backup. Account Factory doesn't do this any more, and steps 8–13 need it to bootstrap those accounts. Pare it back once each account's pipeline exists.
 
