@@ -101,18 +101,15 @@ How we'd do it with several administrators:
 
 The existing tasks in [Tasks](#tasks) that reach this milestone, in the order to do them: landing zone up, Reifnir-Dev and Reifnir-Prod vended, each with its own state bucket, and GitLab projects deploying to them through the SCM project's access mappings. Every other task comes after.
 
-1. **Step 3:** create Reifnir-Log-Archive and Reifnir-Audit in the Security OU.
-2. **Step 3:** set up the 4.0 landing zone.
-3. **Step 3:** confirm Reifnir-Audit is the Config delegated admin, and that the Security Roles StackSets have no instances.
-4. **Step 4:** create the Workloads, Prod and NonProd OUs. Register Infrastructure, Workloads, Prod and NonProd (Workloads before its children). Policy Staging and the Governance registration can wait.
-5. **Step 6:** provision Reifnir-Delivery, Reifnir-Prod and Reifnir-Dev. The other accounts can wait.
-6. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
-7. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
-8. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
-9. **Step 11:** create the bootstrap execution role in Prod and Dev, trusting Delivery.
-10. **Step 11:** from Delivery, create the GitLab OIDC provider and the state bucket in Prod and Dev.
-11. **Step 12:** un-stub the repo→role access mappings, with `sub` and `aud` pinned, and verify branch protection on `main`.
-12. **Step 15:** from that list, confirm that a `main` pipeline's write role works and reaches only its own account, that a non-main pipeline is denied it, and that an unmapped repo gets no role.
+1. **Step 4:** create the Workloads, Prod and NonProd OUs. Register Infrastructure, Workloads, Prod and NonProd (Workloads before its children). Policy Staging and the Governance registration can wait.
+1. **Step 6:** provision Reifnir-Delivery, Reifnir-Prod and Reifnir-Dev. The other accounts can wait.
+1. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
+1. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
+1. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
+1. **Step 11:** create the bootstrap execution role in Prod and Dev, trusting Delivery.
+1. **Step 11:** from Delivery, create the GitLab OIDC provider and the state bucket in Prod and Dev.
+1. **Step 12:** un-stub the repo→role access mappings, with `sub` and `aud` pinned, and verify branch protection on `main`.
+1. **Step 15:** from that list, confirm that a `main` pipeline's write role works and reaches only its own account, that a non-main pipeline is denied it, and that an unmapped repo gets no role.
 
 Do these first after the milestone: the Delivery SCP (step 11), the role-assumption alerts (step 12) and backups (step 13), before Prod holds anything you can't recreate.
 
