@@ -105,7 +105,6 @@ How we'd do it with several administrators:
 
 The existing tasks in [Tasks](#tasks) that reach this milestone, in the order to do them: landing zone up, Reifnir-Dev and Reifnir-Prod vended, each with its own state bucket, and GitLab projects deploying to them through the SCM project's access mappings. Every other task comes after.
 
-1. **Step 6:** finish enrolling the Prod and NonProd OUs (Config recording in progress; Infrastructure is done).
 1. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
 1. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
 1. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
@@ -176,7 +175,7 @@ With Security Roles off, the console can't register an OU or enroll an account (
 - [x] Reifnir-Prod → Workloads › Prod OU
 - [x] Reifnir-Dev → Workloads › NonProd OU
 - [x] Enroll the Governance, Infrastructure and Workloads OUs so the Control Tower baseline applies to the accounts in them (the OU's **Enable AWS Config recording** action). Suspended stays unenrolled.
-- [ ] Enroll the Prod and NonProd OUs (in progress).
+- [x] Enroll the Prod and NonProd OUs.
 - [ ] Enroll the Policy Staging OU once it exists (step 4).
 - [ ] From Root, create the elevated Identity Center user: a separate username, password and hardware MFA key from the daily user, used only for non-Workloads accounts.
 - [ ] From Root, assign the elevated user an admin permission set (user assignment, not group) in Reifnir-Log-Archive, Reifnir-Audit, Reifnir-Governance, Reifnir-Vending, Reifnir-Delivery and Reifnir-Backup. Account Factory doesn't do this any more, and steps 8–13 need it to bootstrap those accounts. Pare it back once each account's pipeline exists.
