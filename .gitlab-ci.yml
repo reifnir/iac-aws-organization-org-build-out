@@ -5,7 +5,33 @@ include:
     ref: main
     file: /gitlab/terraform-pipeline-default.yaml
 
+# Overrides the template's stage list, so its stages must be repeated here.
+stages:
+  - before deploy
+  - deploy
+  - verify
+
 variables:
   TERRAFORM_DIR: ./terraform
   TERRAFORM_STATE_KEY: ${CI_PROJECT_PATH}.tfstate
   TF_VAR_project_url: $CI_PROJECT_URL
+  TF_VAR_gitlab_token: $GITLAB_AUTOMATION_TOKEN
+
+# After apply on main: start in Reifnir-Delivery as the GitLab pipeline role and use
+# ReifnirDeliveryExecution in every ACTIVE account (see the script for the checks).
+test delivery execution role:
+  stage: verify
+  image: python:3.14-slim
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  variables:
+    # Must match delivery_pipeline_role_name in terraform/modules/delivery-execution-role/delivery-execution-role.tf.
+    DELIVERY_PIPELINE_ROLE: ReifnirGitLabPipeline
+  script:
+    - pip install --quiet --root-user-action=ignore -r scripts/requirements.txt
+    - python scripts/test_delivery_execution_role.py
+  needs:
+    - job: apply
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
