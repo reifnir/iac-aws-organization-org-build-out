@@ -1,5 +1,6 @@
 # ReifnirDeliveryExecution: an AdministratorAccess role in every account in the
-# organization, assumable only by the GitLab pipeline role in Reifnir-Delivery.
+# organization, assumable only by the GitLab pipeline role in Reifnir-Delivery and by
+# Identity Center users signed in to Reifnir-Delivery with AWSAdministratorAccess.
 # The role itself is defined in delivery-execution-role.yaml.
 #
 # - Reifnir-Root gets it from a plain CloudFormation stack, because StackSets never
@@ -13,10 +14,15 @@ locals {
   delivery_pipeline_role_name = "ReifnirGitLabPipeline"
   delivery_pipeline_role_arn  = "arn:aws:iam::${var.delivery_account_id}:role/${local.delivery_pipeline_role_name}"
 
+  # The Identity Center permission set whose users in Reifnir-Delivery may also assume
+  # the role, for hands-on work and break-fix outside a pipeline.
+  delivery_admin_permission_set_name = "AWSAdministratorAccess"
+
   template = file("${path.module}/delivery-execution-role.yaml")
   template_parameters = {
-    DeliveryAccountId        = var.delivery_account_id
-    DeliveryPipelineRoleName = local.delivery_pipeline_role_name
+    DeliveryAccountId              = var.delivery_account_id
+    DeliveryPipelineRoleName       = local.delivery_pipeline_role_name
+    DeliveryAdminPermissionSetName = local.delivery_admin_permission_set_name
   }
 }
 

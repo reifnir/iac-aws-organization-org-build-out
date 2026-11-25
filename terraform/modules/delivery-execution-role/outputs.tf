@@ -4,6 +4,6 @@ output "root_role_arn" {
 }
 
 output "delivery_pipeline_role_arn" {
-  description = "The only principal allowed to assume ReifnirDeliveryExecution."
+  description = "The GitLab pipeline role allowed to assume ReifnirDeliveryExecution (Identity Center AWSAdministratorAccess users in Reifnir-Delivery may too)."
   value       = local.delivery_pipeline_role_arn
 }
