@@ -1,5 +1,5 @@
 variable "delivery_account_id" {
-  description = "Account ID of Reifnir-Delivery, whose GitLab pipeline role is the only principal trusted by ReifnirDeliveryExecution."
+  description = "Account ID of Reifnir-Delivery, whose GitLab pipeline role and AWSAdministratorAccess Identity Center users are the only principals trusted by ReifnirDeliveryExecution."
   type        = string
   nullable    = false
 }
