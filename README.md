@@ -105,7 +105,6 @@ How we'd do it with several administrators:
 
 The existing tasks in [Tasks](#tasks) that reach this milestone, in the order to do them: landing zone up, Reifnir-Dev and Reifnir-Prod vended, each with its own state bucket, and GitLab projects deploying to them through the SCM project's access mappings. Every other task comes after.
 
-1. **Step 6:** create the elevated Identity Center user and assign it admin in Reifnir-Delivery.
 1. **Step 11:** create Delivery's management state bucket, and Delivery's first roles for the SCM pipeline.
 1. **Step 11:** migrate the SCM project's state into the `scm/` prefix.
 1. **Step 11:** create the bootstrap execution role in Prod and Dev, trusting Delivery.
@@ -177,8 +176,9 @@ With Security Roles off, the console can't register an OU or enroll an account (
 - [x] Enroll the Governance, Infrastructure and Workloads OUs so the Control Tower baseline applies to the accounts in them (the OU's **Enable AWS Config recording** action). Suspended stays unenrolled.
 - [x] Enroll the Prod and NonProd OUs.
 - [ ] Enroll the Policy Staging OU once it exists (step 4).
-- [ ] From Root, create the elevated Identity Center user: a separate username, password and hardware MFA key from the daily user, used only for non-Workloads accounts.
-- [ ] From Root, assign the elevated user an admin permission set (user assignment, not group) in Reifnir-Log-Archive, Reifnir-Audit, Reifnir-Governance, Reifnir-Vending, Reifnir-Delivery and Reifnir-Backup. Account Factory doesn't do this any more, and steps 8–13 need it to bootstrap those accounts. Pare it back once each account's pipeline exists.
+- [x] From Root, create the elevated Identity Center user: a separate username, password and hardware MFA key from the daily user, used only for non-Workloads accounts.
+- [x] From Root, assign the elevated user an admin permission set (user assignment, not group) in Reifnir-Log-Archive, Reifnir-Audit and Reifnir-Delivery. Account Factory doesn't do this any more, and steps 8–13 need it to bootstrap those accounts. Pare it back once each account's pipeline exists.
+- [ ] Do the same in Reifnir-Governance, Reifnir-Vending and Reifnir-Backup once they exist.
 
 ### 7. Set up the Account Factory portfolio share
 
@@ -208,7 +208,7 @@ Break-glass is still needed with Identity Center in Root. Once no permission set
 - [ ] Protect the root user's email inbox with MFA: it is the root user's password-reset path, so it is as sensitive as the root user itself.
 - [ ] Write the runbook:
   1. Sign in to Root as the root user.
-  2. Get into a member account by assuming `AWSControlTowerExecution` (Account Factory–enrolled accounts) or `OrganizationAccountAccessRole` (accounts made with `create-account`). Record which role each account has. Governance's SCP exempts `AWSControlTowerExecution`, so this path works there too.
+  2. Get into a member account by assuming `AWSControlTowerExecution` or `OrganizationAccountAccessRole`. Accounts made with `create-account` get `OrganizationAccountAccessRole`, and enabling Config recording on their OU adds `AWSControlTowerExecution` (Delivery, Prod and Dev have both). Record which role each account has. Governance's SCP exempts `AWSControlTowerExecution`, so this path works there too.
   3. For tasks that need member-account root (unlocking an S3 bucket or SQS queue policy that denies everyone, for example), use `sts:AssumeRoot` from Root through centralized root access.
   4. Afterwards, check the alert fired, review CloudTrail for the session, and repair Identity Center through the normal path.
 - [ ] Test the runbook end to end before removing `AdministratorAccess` on Root (step 11), then twice a year.
