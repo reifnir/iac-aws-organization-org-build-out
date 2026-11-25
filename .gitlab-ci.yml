@@ -1,0 +1,11 @@
+# Shared Terraform pipeline: checkov and plan on merge requests; checkov, plan and
+# apply on main. Runs in Reifnir-Root through the shared ReifnirAutomation* roles.
+include:
+  - project: reifnir-public-projects/iac/job-templates
+    ref: main
+    file: /gitlab/terraform-pipeline-default.yaml
+
+variables:
+  TERRAFORM_DIR: ./terraform
+  TERRAFORM_STATE_KEY: ${CI_PROJECT_PATH}.tfstate
+  TF_VAR_project_url: $CI_PROJECT_URL

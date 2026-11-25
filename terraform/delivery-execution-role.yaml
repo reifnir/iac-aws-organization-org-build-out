@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  ReifnirDeliveryExecution role, assumable only by the GitLab pipeline role in
+  Reifnir-Delivery. Deployed by Terraform (delivery-execution-role.tf) as a stack in
+  Reifnir-Root and as a StackSet to every other account.
+
+Parameters:
+  DeliveryAccountId:
+    Type: String
+    Description: Account ID of Reifnir-Delivery.
+    AllowedPattern: "^[0-9]{12}$"
+  DeliveryPipelineRoleName:
+    Type: String
+    Description: Name of the role GitLab pipelines assume in Reifnir-Delivery with their OIDC ID token.
+    AllowedPattern: "^[A-Za-z0-9+=,.@_-]{1,64}$"
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ReifnirDeliveryExecution
+      Description: Deploy role for GitLab pipelines in Reifnir-Delivery. Managed by Terraform via CloudFormation.
+      MaxSessionDuration: 3600
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess"
+      # Trusts the Delivery account, then narrows to the one pipeline role with
+      # aws:PrincipalArn. Naming the role directly as the principal would fail while
+      # the role doesn't exist yet, and would silently stop matching if it were recreated.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DeliveryGitLabPipelineOnly
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${DeliveryAccountId}:root"
+            Condition:
+              StringEquals:
+                "aws:PrincipalArn": !Sub "arn:${AWS::Partition}:iam::${DeliveryAccountId}:role/${DeliveryPipelineRoleName}"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt Role.Arn

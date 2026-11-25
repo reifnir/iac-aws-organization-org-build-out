@@ -1,0 +1,9 @@
+# Terraform bits
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+
+# Direnv
+.envrc
