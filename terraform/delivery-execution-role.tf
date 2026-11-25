@@ -28,6 +28,7 @@ locals {
 }
 
 resource "aws_cloudformation_stack" "delivery_execution_root" {
+  #checkov:skip=CKV_AWS_124:Automation falls down immediately when this role isn't deployed, so a failed stack can't go unnoticed. No SNS notifications needed.
   name          = "ReifnirDeliveryExecution"
   template_body = local.delivery_execution_template
   parameters    = local.delivery_execution_parameters
