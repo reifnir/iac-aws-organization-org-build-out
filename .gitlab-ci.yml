@@ -17,12 +17,8 @@ variables:
   TF_VAR_project_url: $CI_PROJECT_URL
   TF_VAR_gitlab_token: $GITLAB_AUTOMATION_TOKEN
 
-# Start in Reifnir-Delivery as the GitLab pipeline role and use ReifnirDeliveryExecution
-# in every ACTIVE account (see the script for the checks).
-#
-# Runs in every pipeline, merge requests included. The roles are already deployed, so
-# there's no value in waiting for a merge to main to test them right now. On main it
-# still waits for apply, so it tests what was just deployed.
+# After apply on main: start in Reifnir-Delivery as the GitLab pipeline role and use
+# ReifnirDeliveryExecution in every ACTIVE account (see the script for the checks).
 test delivery execution role:
   stage: verify
   image: python:3.14-slim
@@ -36,6 +32,6 @@ test delivery execution role:
     - pip install --quiet --root-user-action=ignore -r scripts/requirements.txt
     - python scripts/test_delivery_execution_role.py
   needs:
-    # apply doesn't exist in merge request pipelines.
     - job: apply
-      optional: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
