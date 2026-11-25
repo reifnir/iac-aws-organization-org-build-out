@@ -3,9 +3,8 @@ terraform {
   required_version = ">= 1.11"
 
   required_providers {
-    aws = {
-      source = "hashicorp/aws"
-    }
+    aws    = { source = "hashicorp/aws" }
+    gitlab = { source = "gitlabhq/gitlab" }
   }
 
   # bucket, key and region are passed at init time (see the makefile).
